@@ -92,6 +92,7 @@ func ConfigureGlobals(app *kingpin.Application) {
 				KWalletAppID:             "aws-vault",
 				KWalletFolder:            "aws-vault",
 				KeychainTrustApplication: true,
+				WinCredPrefix:            "aws-vault",
 			})
 			if err != nil {
 				return err
@@ -109,7 +110,7 @@ func fileKeyringPassphrasePrompt(prompt string) (string, error) {
 		return password, nil
 	}
 
-	fmt.Printf("%s: ", prompt)
+	fmt.Fprintf(os.Stderr, "%s: ", prompt)
 	b, err := terminal.ReadPassword(int(os.Stdin.Fd()))
 	if err != nil {
 		return "", err

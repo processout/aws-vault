@@ -4,11 +4,11 @@ AWS Vault is a tool to securely store and access AWS credentials in a developmen
 
 AWS Vault stores IAM credentials in your operating system's secure keystore and then generates temporary credentials from those to expose to your shell and applications. It's designed to be complementary to the AWS CLI tools, and is aware of your [profiles and configuration in `~/.aws/config`](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-config-files).
 
-Currently the supported backends are:
+The supported backends are:
 
-* [macOS Keychain Access](https://support.apple.com/en-au/guide/keychain-access/kyca1083/mac)
+* [macOS Keychain](https://support.apple.com/en-au/guide/keychain-access/welcome/mac)
 * [Windows Credential Manager](https://support.microsoft.com/en-au/help/4026814/windows-accessing-credential-manager)
-* [Secret Service](https://specifications.freedesktop.org/secret-service/)
+* Secret Service ([Gnome Keyring](https://wiki.gnome.org/Projects/GnomeKeyring), [KWallet](https://kde.org/applications/system/org.kde.kwalletmanager5))
 * [KWallet](https://kde.org/applications/system/org.kde.kwalletmanager5)
 * [Pass](https://www.passwordstore.org/)
 * Encrypted file
@@ -20,29 +20,28 @@ Check out the [announcement blog post](https://99designs.com.au/tech-blog/blog/2
 
 You can install aws-vault:
 - by downloading the [latest release](https://github.com/99designs/aws-vault/releases)
-- on macOS via [homebrew](https://github.com/caskroom/homebrew-cask) with `brew cask install aws-vault`
+- on macOS via [Homebrew Cask](https://github.com/caskroom/homebrew-cask) with `brew cask install aws-vault`
+- on Linux via [Homebrew on Linux](https://docs.brew.sh/Homebrew-on-Linux) with `brew install aws-vault`
 - on Windows via [choco](https://chocolatey.org/packages/aws-vault) with `choco install aws-vault`
-- on Archlinux via the [AUR](https://wiki.archlinux.org/index.php/Arch_User_Repository)
+- on Archlinux via the [AUR](https://aur.archlinux.org/packages/aws-vault/)
 - by compiling with `go get github.com/99designs/aws-vault`
 
 
-## Usage
-
-See the [USAGE](./USAGE.md) document for more help and tips.
+## Basic Usage
 
 ```bash
 # Store AWS credentials for the "home" profile
 $ aws-vault add home
 Enter Access Key Id: ABDCDEFDASDASF
-Enter Secret Key: %
+Enter Secret Key: %%%
 
-# Execute a command using temporary credentials
+# Execute a command (using temporary credentials)
 $ aws-vault exec home -- aws s3 ls
 bucket_1
 bucket_2
 
-# open a browser window and login to AWS Console
-$ aws-vault login home # the optional -s flag returns the link to STDOUT
+# open a browser window and login to the AWS Console
+$ aws-vault login home
 
 # List credentials
 $ aws-vault list
@@ -50,6 +49,7 @@ Profile                  Credentials              Sessions
 =======                  ===========              ========
 home                     home                     -
 ```
+See the [USAGE](./USAGE.md) document for more help and tips.
 
 #### Yubikey
 
@@ -74,8 +74,7 @@ $ aws-vault remove-yubikey <aws username> <profile>
 ## Security
 ```bash
 $ aws-vault exec home -- env | grep AWS
-AWS_VAULT=work
-AWS_DEFAULT_REGION=us-east-1
+AWS_VAULT=home
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=%%%
 AWS_SECRET_ACCESS_KEY=%%%
@@ -113,42 +112,6 @@ mfa_serial = arn:aws:iam::123456789012:mfa/jonsmith
 ```
 
 Then when you use the `admin` profile, `aws-vault` will look in the `read-only` profile's keychain for credentials and then use those credentials to assume the `admin` role. This assumed role is stored as a short duration session in your keychain so you will only have to enter MFA once per session.
-
-**Note:** If you have an MFA device attached to your account, the STS service will generate session tokens that are *invalid* unless you provide an MFA code. To enable MFA for a profile, specify the `mfa_serial` in `~/.aws/config`. You can retrieve the MFA's serial (ARN) in the web console, or you can usually derive it pretty easily using the format `arn:aws:iam::[account-id]:mfa/[your-iam-username]`. If you have an account with an MFA associated, but you don't provide the IAM, you are unable to call IAM services, even if you have the correct permissions to do so.
-
-`mfa_serial` will be inherited from the profile designated in `source_profile`, which can be very convenient if you routinely assume multiple roles from the same source because you will only need to provide an MFA token once per source profile session.
-
-In the example below, profiles `admin-a` and `admin-b` do not specify an `mfa_serial`, but because `read-only` specifies an `mfa_serial`, the user will be prompted for a token when either profile is used if the keychain does not contain an active session for `read-only`.
-
-Another benefit of using this configuration strategy is that the user only needs to personalize the configuration of profiles which use access keys. The set of profiles for roles can be copy / pasted from documentation sources.
-
-```ini
-[profile read-only]
-mfa_serial = arn:aws:iam::123456789012:mfa/jonsmith
-
-[profile admin-a]
-source_profile = read-only
-role_arn = arn:aws:iam::123456789012:role/admin-access
-
-[profile admin-b]
-source_profile = read-only
-role_arn = arn:aws:iam::987654321987:role/admin-access
-```
-
-You can also define a chain of roles to assume:
-
-```ini
-[profile read-only]
-mfa_serial = arn:aws:iam::123456789012:mfa/jonsmith
-
-[profile intermediary]
-source_profile = read-only
-role_arn = arn:aws:iam::123456789012:role/intermediary
-
-[profile target]
-source_profile = intermediary
-role_arn = arn:aws:iam::123456789012:role/target
-```
 
 ## macOS Code-signing
 

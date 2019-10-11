@@ -27,10 +27,12 @@ type ExecCommandInput struct {
 	RoleDuration     time.Duration
 	MfaToken         string
 	MfaPrompt        prompt.PromptFunc
+	MfaSerial        string
 	StartServer      bool
 	CredentialHelper bool
 	Signals          chan os.Signal
 	NoSession        bool
+	NoSaveSession    bool
 }
 
 // json metadata for AWS credential process. Ref: https://docs.aws.amazon.com/cli/latest/topic/config-vars.html#sourcing-credentials-from-external-processes
@@ -65,6 +67,10 @@ func ConfigureExecCommand(app *kingpin.Application) {
 		Short('m').
 		StringVar(&input.MfaToken)
 
+	cmd.Flag("mfa-serial-override", "Override the MFA Serial defined in AWS Profile").
+		OverrideDefaultFromEnvar("AWS_MFA_SERIAL").
+		StringVar(&input.MfaSerial)
+
 	cmd.Flag("json", "AWS credential helper. Ref: https://docs.aws.amazon.com/cli/latest/topic/config-vars.html#sourcing-credentials-from-external-processes").
 		Short('j').
 		BoolVar(&input.CredentialHelper)
@@ -72,6 +78,10 @@ func ConfigureExecCommand(app *kingpin.Application) {
 	cmd.Flag("server", "Run the server in the background for credentials").
 		Short('s').
 		BoolVar(&input.StartServer)
+
+	cmd.Flag("no-save-session", "Don't save session data to keyring").
+		OverrideDefaultFromEnvar("AWS_VAULT_NO_SAVE_SESSION").
+		BoolVar(&input.NoSaveSession)
 
 	cmd.Arg("profile", "Name of the profile").
 		Required().
@@ -110,9 +120,11 @@ func ExecCommand(app *kingpin.Application, input ExecCommandInput) {
 	creds, err := vault.NewVaultCredentials(input.Keyring, input.Profile, vault.VaultOptions{
 		SessionDuration:    input.Duration,
 		AssumeRoleDuration: input.RoleDuration,
+		MfaSerial:          input.MfaSerial,
 		MfaToken:           input.MfaToken,
 		MfaPrompt:          input.MfaPrompt,
 		NoSession:          input.NoSession,
+		NoSaveSession:      input.NoSaveSession,
 		Config:             awsConfig,
 	})
 	if err != nil {
